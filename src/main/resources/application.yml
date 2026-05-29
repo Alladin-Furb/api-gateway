@@ -12,5 +12,20 @@ spring:
           predicates:
             - Path=/api/auth/**
 
+        - id: presenca-service
+          uri: ${PRESENCA_SERVICE_URL:http://presenca-service:8082}
+          predicates:
+            - Path=/api/v1/**
+
+        - id: relatorio-service
+          uri: ${RELATORIO_SERVICE_URL:http://relatorio-service:8080}
+          predicates:
+            - Path=/api/relatorios/**,/api/metricas/**,/api/indicadores/**,/api/sync/**
+
+        - id: register-adm-service
+          uri: ${REGISTER_ADM_SERVICE_URL:http://register-adm-service:8084}
+          predicates:
+            - Path=/admin/**,/alunos/**,/motoristas/**,/veiculos/**
+
 jwt:
   secret: ${JWT_SECRET}
