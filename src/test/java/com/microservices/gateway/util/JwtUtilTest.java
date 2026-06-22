@@ -31,17 +31,17 @@ class JwtUtilTest {
 
     @Test
     void validateAndExtractClaims_shouldReturnClaims_forValidToken() {
-        String token = buildToken("123", "ROLE_USER", 3600000L);
+        String token = buildToken("123", "ROLE_ALUNO", 3600000L);
 
         Claims claims = jwtUtil.validateAndExtractClaims(token);
 
         assertThat(claims.getSubject()).isEqualTo("123");
-        assertThat(claims.get("role", String.class)).isEqualTo("ROLE_USER");
+        assertThat(claims.get("role", String.class)).isEqualTo("ROLE_ALUNO");
     }
 
     @Test
     void validateAndExtractClaims_shouldThrow_forExpiredToken() {
-        String token = buildToken("123", "ROLE_USER", -1000L);
+        String token = buildToken("123", "ROLE_ALUNO", -1000L);
 
         assertThatThrownBy(() -> jwtUtil.validateAndExtractClaims(token))
                 .isInstanceOf(Exception.class);
@@ -54,7 +54,7 @@ class JwtUtilTest {
         Date now = new Date();
         String token = Jwts.builder()
                 .subject("123")
-                .claim("role", "ROLE_USER")
+                .claim("role", "ROLE_ALUNO")
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + 3600000L))
                 .signWith(wrongKey)

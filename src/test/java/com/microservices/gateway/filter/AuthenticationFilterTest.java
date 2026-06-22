@@ -45,7 +45,7 @@ class AuthenticationFilterTest {
     void filter_shouldPassThrough_forLoginPath() {
         MockServerHttpRequest request = MockServerHttpRequest.post("/api/auth/login").build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
-        when(chain.filter(exchange)).thenReturn(Mono.empty());
+        when(chain.filter(org.mockito.ArgumentMatchers.any())).thenReturn(Mono.empty());
 
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
@@ -54,15 +54,14 @@ class AuthenticationFilterTest {
     }
 
     @Test
-    void filter_shouldPassThrough_forRegisterPath() {
+    void filter_shouldRejectRegisterPathWithoutToken() {
         MockServerHttpRequest request = MockServerHttpRequest.post("/api/auth/register").build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
-        when(chain.filter(exchange)).thenReturn(Mono.empty());
 
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
 
-        verify(jwtUtil, never()).validateAndExtractClaims(anyString());
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
@@ -105,8 +104,10 @@ class AuthenticationFilterTest {
 
     @Test
     void filter_shouldPropagateHeaders_whenTokenIsValid() {
-        MockServerHttpRequest request = MockServerHttpRequest.get("/api/protected")
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/relatorios/123")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
+                .header("X-User-Role", "ROLE_ALUNO")
+                .header("X-Profile-Id", "999")
                 .build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
@@ -118,6 +119,59 @@ class AuthenticationFilterTest {
                 .verifyComplete();
 
         verify(jwtUtil).validateAndExtractClaims("valid-token");
+    }
+
+    @Test
+    void filter_shouldReturn403_whenAlunoAccessesAdminEndpoint() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/admin/alunos")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+        Claims claims = new DefaultClaims(Map.of(
+                "sub", "42",
+                "role", "ROLE_ALUNO",
+                "profileId", 7));
+        when(jwtUtil.validateAndExtractClaims("valid-token")).thenReturn(claims);
+
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void filter_shouldAllowAlunoToAccessOwnFrequencyEndpoint() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/metricas/frequencia/me")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+        Claims claims = new DefaultClaims(Map.of(
+                "sub", "42",
+                "role", "ROLE_ALUNO",
+                "profileId", 7));
+        when(jwtUtil.validateAndExtractClaims("valid-token")).thenReturn(claims);
+        when(chain.filter(org.mockito.ArgumentMatchers.any())).thenReturn(Mono.empty());
+
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        verify(chain).filter(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void filter_shouldAllowAlunoToUseProtectedReportEndpoints() {
+        MockServerHttpRequest request = MockServerHttpRequest.post("/api/relatorios")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+        Claims claims = new DefaultClaims(Map.of(
+                "sub", "42",
+                "role", "ROLE_ALUNO",
+                "profileId", 7));
+        when(jwtUtil.validateAndExtractClaims("valid-token")).thenReturn(claims);
+        when(chain.filter(org.mockito.ArgumentMatchers.any())).thenReturn(Mono.empty());
+
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        verify(chain).filter(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
