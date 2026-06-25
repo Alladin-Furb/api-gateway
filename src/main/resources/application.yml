@@ -28,7 +28,7 @@ spring:
             - Path=/admin/**,/alunos/**,/motoristas/**,/veiculos/**
 
         - id: roteirizacao-service
-          uri: ${ROTEIRIZACAO_SERVICE_URL:http://route-gen:8085}
+          uri: ${ROTEIRIZACAO_SERVICE_URL:http://route-generator:8080}
           predicates:
             - Path=/api/rotas/**
 

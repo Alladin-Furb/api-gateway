@@ -72,11 +72,18 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         String authHeader = exchange.getRequest().getHeaders()
                 .getFirst(HttpHeaders.AUTHORIZATION);
 
-        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
-            return unauthorizedResponse(exchange.getResponse(), correlationId);
+        String token;
+        if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
+            token = authHeader.substring(BEARER_PREFIX.length());
+        } else {
+            // O handshake WebSocket (SignalR) não envia o header Authorization;
+            // o token chega na query string como ?access_token=...
+            token = exchange.getRequest().getQueryParams().getFirst("access_token");
         }
 
-        String token = authHeader.substring(BEARER_PREFIX.length());
+        if (token == null || token.isBlank()) {
+            return unauthorizedResponse(exchange.getResponse(), correlationId);
+        }
 
         try {
             Claims claims = jwtUtil.validateAndExtractClaims(token);
@@ -142,6 +149,13 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         }
 
         if ("ROLE_MOTORISTA".equals(role)) {
+            if ("GET".equals(method)
+                    && (path.equals("/veiculos")
+                        || path.startsWith("/veiculos/")
+                        || path.equals("/api/v1/viagens")
+                        || path.startsWith("/api/v1/viagens/"))) {
+                return true;
+            }
             return path.equals("/api/relatorios")
                     || path.startsWith("/api/relatorios/")
                     || path.startsWith("/api/metricas/")
@@ -166,8 +180,15 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             return Set.of("GET", "POST").contains(method);
         }
 
+        // Rotas: o próprio route-gen valida a propriedade por aluno
+        // (ponto de embarque, confirmação de embarque e o hub em tempo real).
+        if (path.startsWith("/api/rotas/")) {
+            return true;
+        }
+
         return "GET".equals(method)
-                && (path.equals("/api/v1/cursos")
-                    || path.startsWith("/api/v1/cursos/"));
+                && (path.equals("/api/v1/viagens")
+                    || path.startsWith("/api/v1/viagens/")
+                    || path.startsWith("/veiculos/"));
     }
 }
